@@ -1,9 +1,11 @@
-import 'dart:math';
+import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 class ClockPage extends StatelessWidget {
-  const ClockPage({Key? key}) : super(key: key);
+  final double clockRadius;
+  const ClockPage({this.clockRadius = 150.0, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -12,10 +14,78 @@ class ClockPage extends StatelessWidget {
       body: SizedBox(
         width: size.width,
         height: size.width,
-        child: CustomPaint(
-          painter: ClockPainter(clockRadius: 150.0),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Clock(clockRadius: clockRadius),
+            ClockHand(clockRadius: clockRadius),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class Clock extends StatelessWidget {
+  const Clock({
+    Key? key,
+    required this.clockRadius,
+  }) : super(key: key);
+
+  final double clockRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: ClockPainter(
+        clockRadius: clockRadius,
+      ),
+    );
+  }
+}
+
+class ClockHand extends StatefulWidget {
+  final double clockRadius;
+
+  const ClockHand({
+    Key? key,
+    required this.clockRadius,
+  }) : super(key: key);
+
+  @override
+  State<ClockHand> createState() => _ClockHandState();
+}
+
+class _ClockHandState extends State<ClockHand> {
+  late final Timer timer;
+  final timeNotifier = ValueNotifier<DateTime>(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      timeNotifier.value = DateTime.now();
+    });
+  }
+
+  @override
+  void dispose() {
+    timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: timeNotifier,
+      builder: (context, value, child) {
+        return CustomPaint(
+          painter: ClockHandPainter(
+            clockRadius: widget.clockRadius,
+            dateTime: value,
+          ),
+        );
+      },
     );
   }
 }
@@ -60,30 +130,16 @@ class ClockPainter extends CustomPainter {
     painter.paint(canvas, paintOffset);
   }
 
-  Offset _getNumberOffset(int number, int max, Offset center, double border) {
-    final angle = (3 / 2 * pi) + (pi / 6 * number);
-    double x = center.dx + (clockRadius - border) * cos(angle);
-    double y = center.dy + (clockRadius - border) * sin(angle);
-    return Offset(x, y);
-  }
-
   void _drawNumbers(
       Canvas canvas, Size size, Offset center, double border, int max) {
     final list = List.generate(max, (index) => index + 1);
     for (var item in list) {
-      _drawNumber(canvas, _getNumberOffset(item, max, center, border), '$item');
+      _drawNumber(
+        canvas,
+        _getNumberOffset(item, max, center, border, clockRadius),
+        '$item',
+      );
     }
-  }
-
-  void _drawHand(
-      Canvas canvas, Size size, Offset center, double border, int max) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..color = Colors.white
-      ..strokeWidth = 5.0
-      ..strokeCap = StrokeCap.round;
-    final offset = _getNumberOffset(1, max, center, border);
-    canvas.drawLine(center, Offset(offset.dx - 0, offset.dy - 0), paint);
   }
 
   @override
@@ -92,7 +148,6 @@ class ClockPainter extends CustomPainter {
     const max = 12;
     final center = _drawCircle(canvas, size);
     _drawNumbers(canvas, size, center, border, max);
-    _drawHand(canvas, size, center, border, max);
   }
 
   @override
@@ -100,4 +155,61 @@ class ClockPainter extends CustomPainter {
 
   @override
   bool shouldRebuildSemantics(ClockPainter oldDelegate) => false;
+}
+
+Offset _getNumberOffset(
+    int number, int max, Offset center, double border, double radius) {
+  final angle = (3 / 2 * math.pi) + (2 * math.pi / max * number);
+  double x = center.dx + (radius - border) * math.cos(angle);
+  double y = center.dy + (radius - border) * math.sin(angle);
+  return Offset(x, y);
+}
+
+class ClockHandPainter extends CustomPainter {
+  final double clockRadius;
+  final DateTime dateTime;
+
+  final hourHandPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..color = Colors.white
+    ..strokeWidth = 7.0
+    ..strokeCap = StrokeCap.round;
+
+  final minuteHandPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..color = Colors.blue
+    ..strokeWidth = 5.0
+    ..strokeCap = StrokeCap.round;
+
+  final secondHandPaint = Paint()
+    ..style = PaintingStyle.stroke
+    ..color = Colors.deepOrange
+    ..strokeWidth = 3.0
+    ..strokeCap = StrokeCap.round;
+
+  ClockHandPainter({required this.dateTime, required this.clockRadius});
+
+  void _drawHand(Canvas canvas, Size size, Offset center, double border,
+      int max, int val, Paint paint) {
+    final offset = _getNumberOffset(val, max, center, border, clockRadius);
+    canvas.drawLine(center, Offset(offset.dx, offset.dy), paint);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const border = 30.0;
+    final center = Offset(size.width / 2, size.height / 2);
+    _drawHand(canvas, size, center, border, 12, dateTime.hour, hourHandPaint);
+    _drawHand(
+        canvas, size, center, border, 60, dateTime.minute, minuteHandPaint);
+    _drawHand(
+        canvas, size, center, border, 60, dateTime.second, secondHandPaint);
+  }
+
+  @override
+  bool shouldRepaint(ClockHandPainter oldDelegate) =>
+      dateTime != oldDelegate.dateTime;
+
+  @override
+  bool shouldRebuildSemantics(ClockHandPainter oldDelegate) => false;
 }
