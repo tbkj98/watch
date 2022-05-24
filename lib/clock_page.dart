@@ -190,8 +190,9 @@ class ClockHandPainter extends CustomPainter {
   ClockHandPainter({required this.dateTime, required this.clockRadius});
 
   void _drawHand(Canvas canvas, Size size, Offset center, double border,
-      int max, int val, Paint paint) {
-    final offset = _getNumberOffset(val, max, center, border, clockRadius);
+      int max, int val, double handLength, Paint paint) {
+    final offset = _getNumberOffset(
+        val, max, center, border + clockRadius - handLength, clockRadius);
     canvas.drawLine(center, Offset(offset.dx, offset.dy), paint);
   }
 
@@ -199,11 +200,15 @@ class ClockHandPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     const border = 30.0;
     final center = Offset(size.width / 2, size.height / 2);
-    _drawHand(canvas, size, center, border, 12, dateTime.hour, hourHandPaint);
-    _drawHand(
-        canvas, size, center, border, 60, dateTime.minute, minuteHandPaint);
-    _drawHand(
-        canvas, size, center, border, 60, dateTime.second, secondHandPaint);
+    final hourHandLength = clockRadius / 1.5;
+    final minuteHandLength = clockRadius - (border / 2.0);
+    final secondHandLength = clockRadius;
+    _drawHand(canvas, size, center, border, 12, dateTime.hour, hourHandLength,
+        hourHandPaint);
+    _drawHand(canvas, size, center, border, 60, dateTime.minute,
+        minuteHandLength, minuteHandPaint);
+    _drawHand(canvas, size, center, border, 60, dateTime.second,
+        secondHandLength, secondHandPaint);
   }
 
   @override
